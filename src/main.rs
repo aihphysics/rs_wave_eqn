@@ -9,35 +9,50 @@ const T_DIM: usize = 1000;
 const C: f64 = 0.1;
 const T: f64 = 0.1;
 const H_INV: f64 = 10.0;
-const ATTENUATION: f64 = 0.5;
 const PAR: f64 = C*C*T*T*H_INV*H_INV;
 const OUT_FILE_NAME: &str = "./plot.gif";
+const ATTENUATION:f64 = 0.5;
+
+const A:f64 = 1.0;
+const SIGMA_X:f64 = 3.0;
+const SIGMA_Y:f64 = 3.0;
 
 
-fn update( t_idx: usize, mat: &mut ArrayBase<ViewRepr<&mut f64>, Dim<[usize; 3]>> ){
 
-  mat[[1, X_DIM/2, Y_DIM/2]]  = 0.5*( ( t_idx as f64 * T )/2.0 ).sin();
 
+fn add_initial_gaussian( mat: &mut ArrayBase<ViewRepr<&mut f64>, Dim<[usize; 3]>> ){
   for i in 1..X_DIM-1{
     for j in 1..Y_DIM-1{
-      mat[[2, i, j]] = ATTENUATION * PAR * ( mat[ [1, i+1,j   ] ] + mat[ [ 1, i-1, j   ] ] 
-                           +   mat[ [1, i,  j+1 ] ] + mat[ [ 1, i,   j-1 ] ] 
-                           - 4.0*mat[ [ 1, i, j ] ] ) 
-                        - mat[ [ 0, i, j  ] ] + 2.0*mat[ [ 1, i, j ] ];
+      mat[[ 0, i, j ]] = A*(-0.5*f64::powf((i as f64 - (13.0))/SIGMA_X, 2.0 )
+                            -0.5*f64::powf((j as f64 - (13.0))/SIGMA_Y, 2.0 ) ).exp();
+      //println!( "{:?}",mat[[ 0, i, j ]] );
+      mat[[ 1,i,j ]] = mat[[ 0,i,j ]];
+      mat[[ 2,i,j ]] = mat[[ 0,i,j ]];
     }
+    //println!( "" );
   }
 }
 
 
-fn main() {
+fn add_initial_peak( mat: &mut ArrayBase<ViewRepr<&mut f64>, Dim<[usize; 3]>> ){
+  mat[[0, X_DIM/2, Y_DIM/2]]  = 0.25;
+  mat[[1, X_DIM/2, Y_DIM/2]]  = 0.25;
+}
 
-  let mut space = Array3::< f64 >::zeros( ( T_DIM, X_DIM, Y_DIM ) );
-  for idx in 1usize..T_DIM-3 {
-    update( idx-1, &mut space.slice_mut( s![ idx..idx+3, .., .. ] ) );
+fn update( mat: &mut ArrayBase<ViewRepr<&mut f64>, Dim<[usize; 3]>> ){
+
+  for i in 1..X_DIM-1{
+    for j in 1..Y_DIM-1{
+      mat[[2, i, j]] = ATTENUATION*PAR * ( mat[ [1, i+1,j   ] ] + mat[ [ 1, i-1, j   ] ] 
+                           +   mat[ [1, i,  j+1 ] ] + mat[ [ 1, i,   j-1 ] ] 
+                           - 4.0*mat[ [ 1, i, j ] ] ) 
+                          - mat[ [ 0, i, j  ] ] + 2.0*mat[ [ 1, i, j ] ];
+    }
   }
+}
 
+fn record_gif( space: Array3::< f64 > ){
   let root = BitMapBackend::gif(OUT_FILE_NAME, (500, 500), 50).unwrap().into_drawing_area();
-  
   for t in 1..T_DIM-3 {
 
     root.fill( &WHITE ).unwrap();
@@ -72,7 +87,22 @@ fn main() {
     root.present().unwrap();
   }
 
+}
 
+
+fn main() {
+
+  let mut space = Array3::< f64 >::zeros( ( T_DIM, X_DIM, Y_DIM ) );
+
+  add_initial_gaussian( &mut space.slice_mut( s![ ..3, .., .. ] ) );
+  //add_initial_peak( &mut space.slice_mut( s![ ..3, .., .. ] ) );
+
+  for idx in 1usize..T_DIM-3 {
+    //update( idx-1, &mut space.slice_mut( s![ idx..idx+3, .., .. ] ) );
+    update( &mut space.slice_mut( s![ idx..idx+3, .., .. ] ) );
+  }
+
+  record_gif( space );
 
 
 }
