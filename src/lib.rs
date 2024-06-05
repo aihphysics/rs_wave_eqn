@@ -3,30 +3,37 @@ use plotters::prelude::*;
 
 const H_INV: f64 = 10.0;
 
+enum WaveType {
+    Gaussian,
+    Sin,
+    Cos,
+}
+
 pub struct Wave {
     amplitude: f64,
     mu_x: f64,
     mu_y: f64,
     sigma_x: f64,
     sigma_y: f64,
+    function: WaveType,
 }
 
 impl Wave {
-    //pub fn new_from( &args: Args ) -> Self {
-    //  Wave{ amplitude=0,
-    //        0,0,0,0 }
-    //}
-
-    pub fn gaussian_elem(&self, x: usize, y: usize) -> f64 {
-        self.amplitude
-            * (-0.5 * f64::powf((x as f64 - (self.mu_x / 2.0)) / self.sigma_x, 2.0)
-                - 0.5 * f64::powf((y as f64 - (self.mu_y / 2.0)) / self.sigma_y, 2.0))
+    pub fn elem(&self, x: usize, y: usize) -> f64 {
+        match self.function {
+            WaveType::Gaussian => {
+                self.amplitude
+                    * (-0.5
+                        * f64::powf((x as f64 - (self.mu_x / 2.0)) / self.sigma_x, 2.0)
+                        * -0.5
+                        * f64::powf((y as f64 - (self.mu_y / 2.0)) / self.sigma_y, 2.0))
+            }
+            WaveType::Sin => (x as f64).sin() * (y as f64).sin(),
+            WaveType::Cos => (x as f64).cos() * (y as f64).cos(),
+            _ => 0f64,
+        }
     }
 }
-
-//velocity: f64,
-//timestep: f64
-//hinv: f64
 
 pub struct Medium {
     attenuation: f64,
@@ -36,41 +43,70 @@ pub struct Medium {
 }
 
 impl Medium {
-    pub fn new_cube( attenuation: f64, parameter: f64, dim: usize) -> Self{
-      Self { 
-        attenuation, 
-        parameter,
-        shape: ( dim, dim, dim ),
-        medium: Array3::zeros( ( dim, dim, dim ) ),
-      }
+    pub fn new(
+        attenuation: f64,
+        velocity: f64,
+        timestep: f64,
+        x_dim: usize,
+        y_dim: usize,
+        t_dim: usize,
+    ) -> Self {
+        Self {
+            attenuation,
+            parameter: velocity * velocity * timestep * timestep * H_INV * H_INV,
+            shape: (t_dim, x_dim, y_dim),
+            medium: Array3::zeros((t_dim, x_dim, y_dim)),
+        }
     }
-    pub fn new( attenuation: f64, parameter: f64, xy_dim: usize, t_dim: usize ) -> Self{
-      Self { 
-        attenuation, 
-        parameter,
-        shape: ( xy_dim, xy_dim, t_dim ),
-        medium: Array3::zeros( ( xy_dim, xy_dim, t_dim ) ),
-      }
+
+    pub fn inital_add(&mut self, wave: Wave) {
+        self.medium = &self.medium
+            + Array3::from_shape_fn(self.shape, |(t, x, y)| match t {
+                0 | 1 => wave.elem(x, y),
+                _ => 0f64,
+            });
     }
-    pub fn update(&self, mat: &mut ArrayViewMut3<f64>) {
-        let (_, x_dim, y_dim) = mat.dim();
+
+    pub fn new_square(
+        attenuation: f64,
+        velocity: f64,
+        timestep: f64,
+        x_dim: usize,
+        t_dim: usize,
+    ) -> Self {
+        Self {
+            attenuation,
+            parameter: velocity * velocity * timestep * timestep * H_INV * H_INV,
+            shape: (t_dim, x_dim, x_dim),
+            medium: Array3::zeros((t_dim, x_dim, x_dim)),
+        }
+    }
+
+    pub fn process(&mut self) {
+        for idx in 1usize..self.shape.0 - 3 {
+            Medium::update(self, idx);
+        }
+    }
+
+    fn update(&mut self, step: usize) {
+        let mut slice: ArrayViewMut3<f64> = self.medium.slice_mut(s![step..step + 3, .., ..]);
+        let (_, x_dim, y_dim) = slice.dim();
 
         for i in 1..x_dim - 1 {
             for j in 1..y_dim - 1 {
-                mat[[2, i, j]] = self.attenuation
+                slice[[2, i, j]] = self.attenuation
                     * self.parameter
-                    * (mat[[1, i + 1, j]]
-                        + mat[[1, i - 1, j]]
-                        + mat[[1, i, j + 1]]
-                        + mat[[1, i, j - 1]]
-                        - 4.0 * mat[[1, i, j]])
-                    - mat[[0, i, j]]
-                    + 2.0 * mat[[1, i, j]];
+                    * (slice[[1, i + 1, j]]
+                        + slice[[1, i - 1, j]]
+                        + slice[[1, i, j + 1]]
+                        + slice[[1, i, j - 1]]
+                        - 4.0 * slice[[1, i, j]])
+                    - slice[[0, i, j]]
+                    + 2.0 * slice[[1, i, j]];
             }
         }
     }
 }
-
 
 pub fn record_gif(space: Array3<f64>) {
     let (t_dim, x_dim, y_dim) = space.dim();
