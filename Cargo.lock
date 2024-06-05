@@ -729,6 +729,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
+name = "substrate"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "ndarray",
+ "plotters",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -846,15 +855,6 @@ name = "wasm-bindgen-shared"
 version = "0.2.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
-
-[[package]]
-name = "wave_eq"
-version = "0.1.0"
-dependencies = [
- "clap",
- "ndarray",
- "plotters",
-]
 
 [[package]]
 name = "web-sys"

@@ -1,5 +1,5 @@
 [package]
-name = "wave_eq"
+name = "substrate"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,3 +9,7 @@ edition = "2021"
 clap = { version = "4.5.4", features = ["derive"] }
 ndarray = "0.15.6"
 plotters = "0.3.5"
+ 
+[[bin]]
+name = "substrate_cli"
+path = "src/main.rs"
