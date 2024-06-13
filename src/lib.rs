@@ -1,14 +1,17 @@
 use ndarray::prelude::*;
 use plotters::prelude::*;
+use serde::{Serialize, Deserialize};
 
 const H_INV: f64 = 10.0;
 
+#[derive(Serialize, Deserialize)]
 enum WaveType {
     Gaussian,
     Sin,
     Cos,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Wave {
     amplitude: f64,
     mu_x: f64,
@@ -60,11 +63,13 @@ impl Medium {
     }
 
     pub fn inital_add(&mut self, wave: Wave) {
-        self.medium = &self.medium
-            + Array3::from_shape_fn(self.shape, |(t, x, y)| match t {
-                0 | 1 => wave.elem(x, y),
-                _ => 0f64,
-            });
+        let rhs = Array3::from_shape_fn(self.shape, |(t, x, y)| match t {
+            0 | 1 => wave.elem(x, y),
+            _ => 0f64,
+        });
+        //self.medium = self.medium + rhs;
+        //self.medium = &self.medium + rhs;
+        self.medium.scaled_add(1.0, &rhs);
     }
 
     pub fn new_square(
